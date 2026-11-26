@@ -1,44 +1,70 @@
+
 from PIL import Image
-import turtle
+from collections import deque
 
 
-def desenhar_retangulo(caneta, x, y, largura, altura, cor):
-    """Desenha um retângulo preenchido."""
-    caneta.penup()
-    caneta.goto(x, y)
-    caneta.setheading(0)
-    caneta.color(cor)
-    caneta.begin_fill()
+def remover_fundo_preto(imagem, tolerancia=55):
+    """
+    Remove pixels escuros conectados às bordas.
+    Preserva contornos pretos que estejam dentro da imagem.
+    """
 
-    for distancia, angulo in [
-        (largura, 90),
-        (altura, 90),
-        (largura, 90),
-        (altura, 90)
-    ]:
-        caneta.forward(distancia)
-        caneta.right(angulo)
+    imagem = imagem.convert("RGBA")
+    largura, altura = imagem.size
+    pixels = imagem.load()
 
-    caneta.end_fill()
+    visitados = bytearray(largura * altura)
+    fila = deque()
+
+    def eh_fundo(x, y):
+        r, g, b, a = pixels[x, y]
+        return a > 0 and max(r, g, b) <= tolerancia
+
+    # Procura pixels pretos nas bordas
+    for x in range(largura):
+        for y in (0, altura - 1):
+            if eh_fundo(x, y):
+                fila.append((x, y))
+
+    for y in range(altura):
+        for x in (0, largura - 1):
+            if eh_fundo(x, y):
+                fila.append((x, y))
+
+    # Percorre apenas regiões conectadas ao fundo
+    while fila:
+        x, y = fila.popleft()
+        indice = y * largura + x
+
+        if visitados[indice]:
+            continue
+
+        visitados[indice] = 1
+        pixels[x, y] = (0, 0, 0, 0)
+
+        vizinhos = [
+            (x + 1, y),
+            (x - 1, y),
+            (x, y + 1),
+            (x, y - 1)
+        ]
+
+        for nx, ny in vizinhos:
+            if 0 <= nx < largura and 0 <= ny < altura:
+                if not visitados[ny * largura + nx] and eh_fundo(nx, ny):
+                    fila.append((nx, ny))
+
+    return imagem
 
 
-def carregar_imagem(caminho, remover_preto=False):
-    """Carrega a imagem e prepara seus pixels."""
+def carregar_imagem(caminho):
+    """Abre e prepara uma imagem PNG."""
 
     imagem = Image.open(caminho).convert("RGBA")
 
-    # Remove o fundo preto do símbolo
-    if remover_preto:
-        pixels = imagem.load()
+    imagem = remover_fundo_preto(imagem)
 
-        for y in range(imagem.height):
-            for x in range(imagem.width):
-                r, g, b, a = pixels[x, y]
-
-                if r < 35 and g < 35 and b < 35:
-                    pixels[x, y] = (0, 0, 0, 0)
-
-    # Recorta as áreas transparentes
+    # Remove espaços transparentes
     caixa = imagem.getbbox()
 
     if caixa:
@@ -47,72 +73,76 @@ def carregar_imagem(caminho, remover_preto=False):
     return imagem
 
 
-def desenhar_imagem(
-    caneta,
+def transformar_em_retangulos(
     caminho,
-    x,
-    y,
-    tamanho_pixel=4,
-    largura_maxima=150,
-    remover_preto=False
+    centro_x,
+    centro_y,
+    largura_maxima,
+    altura_maxima,
+    max_pixels=180
 ):
-    """Transforma uma imagem em pixels desenhados pelo Turtle."""
+    """
+    Converte uma imagem em pequenos retângulos.
+    Agrupa pixels consecutivos da mesma cor.
+    """
 
-    imagem = carregar_imagem(caminho, remover_preto)
+    imagem = carregar_imagem(caminho)
 
-    # Redimensiona preservando a proporção
-    proporcao = min(
-        largura_maxima / imagem.width,
-        largura_maxima / imagem.height
-    )
-
-    nova_largura = max(1, int(imagem.width * proporcao))
-    nova_altura = max(1, int(imagem.height * proporcao))
-
-    imagem = imagem.resize(
-        (nova_largura, nova_altura),
+    # Reduz a imagem preservando o pixel art
+    imagem.thumbnail(
+        (max_pixels, max_pixels),
         Image.Resampling.NEAREST
     )
 
+    largura, altura = imagem.size
+
+    # Calcula escala para posicionamento no Canvas
+    escala = min(
+        largura_maxima / largura,
+        altura_maxima / altura
+    )
+
+    largura_final = largura * escala
+    altura_final = altura * escala
+
+    inicio_x = centro_x - largura_final / 2
+    inicio_y = centro_y - altura_final / 2
+
     pixels = imagem.load()
+    retangulos = []
 
-    # Desenha os pixels agrupando cores iguais na horizontal
-    for linha in range(nova_altura):
-        coluna = 0
+    # Percorre cada linha da imagem
+    for y in range(altura):
+        x = 0
 
-        while coluna < nova_largura:
-            cor = pixels[coluna, linha]
+        while x < largura:
+            cor = pixels[x, y]
 
+            # Ignora transparência
             if cor[3] == 0:
-                coluna += 1
+                x += 1
                 continue
 
-            inicio = coluna
+            inicio = x
 
-            while (
-                coluna < nova_largura
-                and pixels[coluna, linha] == cor
-            ):
-                coluna += 1
+            # Agrupa pixels consecutivos da mesma cor
+            while x < largura and pixels[x, y] == cor:
+                x += 1
 
-            largura = (coluna - inicio) * tamanho_pixel
+            quantidade = x - inicio
 
-            cor_rgb = (
-                cor[0] / 255,
-                cor[1] / 255,
-                cor[2] / 255
+            r, g, b, a = cor
+
+            cor_css = (
+                f"rgba({r},{g},{b},{a / 255:.3f})"
             )
 
-            desenhar_retangulo(
-                caneta,
-                x + inicio * tamanho_pixel,
-                y - linha * tamanho_pixel,
-                largura,
-                tamanho_pixel,
-                cor_rgb
-            )
+            retangulos.append({
+                "x": round(inicio_x + inicio * escala, 2),
+                "y": round(inicio_y + y * escala, 2),
+                "w": round(quantidade * escala, 2),
+                "h": round(escala, 2),
+                "cor": cor_css
+            })
 
-    return (
-        nova_largura * tamanho_pixel,
-        nova_altura * tamanho_pixel
-    )
+    return retangulos

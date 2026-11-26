@@ -1,68 +1,352 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <title>Ritual de convite</title>
+
 <style>
-  body { margin: 0; padding: 16px; background: #14182e; color: #ffd778;
-         font-family: Georgia, serif; text-align: center; }
-  canvas { max-width: 100%; height: auto; }
-  button { background: none; color: inherit; border: 1px solid; padding: 8px 16px;
-           border-radius: 8px; cursor: pointer; font: inherit; }
+
+    body {
+        margin: 0;
+        padding: 16px;
+        background: #14182e;
+        color: #ffd778;
+        font-family: Georgia, serif;
+        text-align: center;
+    }
+
+    h1 {
+        margin-top: 25px;
+    }
+
+    canvas {
+        display: block;
+        margin: 20px auto;
+        max-width: 100%;
+        height: auto;
+        background: black;
+        image-rendering: pixelated;
+    }
+
+    button {
+        background: none;
+        color: inherit;
+        border: 1px solid;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font: inherit;
+        margin-top: 15px;
+    }
+
+    button:hover {
+        background: #ffd778;
+        color: #14182e;
+    }
+
+    #contagem {
+        margin-top: 20px;
+    }
+
+    #status {
+        color: #b9a9dc;
+        font-size: 14px;
+    }
+
 </style>
+
 </head>
+
 <body>
-  <h1>Sor Richard, você é nosso convidado especial!</h1>
-  <canvas id="c"></canvas>
-  <h2 id="contagem"></h2>
-  <button id="rever">Rever o desenho</button>
+
+<h1>Sor Richard, você é nosso convidado especial!</h1>
+
+<p>E nós te invocamos agora para a formatura de IA&Dados 2026...</p>
+
+<canvas id="c"></canvas>
+
+<h2 id="contagem"></h2>
+
+<p id="status">Preparando o ritual...</p>
+
+<button id="rever">Rever o desenho</button>
+
 
 <script>
-const DATA_FORMATURA = new Date(2026, 11, 15);  
-// quanto tempo dura a animação
-const DURACAO_SEGUNDOS = 25;                    
 
-const dias = Math.ceil((DATA_FORMATURA - new Date()) / 86400000);
-document.getElementById("contagem").textContent =
-  dias > 0 ? `Faltam ${dias} dias para a minha formatura` : "A formatura chegou!";
+// ========================================
+// CONFIGURAÇÕES
+// ========================================
+
+const DATA_FORMATURA = new Date(2026, 11, 15);
+
+const DURACAO_SEGUNDOS = 25;
+
+const PAUSA_CENAS = 600;
+
+
+// ========================================
+// CONTAGEM REGRESSIVA
+// ========================================
+
+function atualizarContagem() {
+
+    const dias = Math.ceil(
+        (DATA_FORMATURA - new Date()) / 86400000
+    );
+
+    document.getElementById("contagem").textContent =
+        dias > 0
+            ? `Faltam ${dias} dias para a minha formatura`
+            : "A formatura chegou!";
+
+}
+
+atualizarContagem();
+
+
+// ========================================
+// CANVAS
+// ========================================
 
 const canvas = document.getElementById("c");
+
 const ctx = canvas.getContext("2d");
-let desenho, segmentos, animacao = 0;
+
+const status = document.getElementById("status");
+
+let desenho = null;
+
+let animacao = null;
+
+
+// ========================================
+// PREPARAÇÃO
+// ========================================
 
 function preparar(d) {
-  desenho = d;
-  canvas.width = d.largura;
-  canvas.height = d.altura;
-  document.body.style.background = d.fundo;
-  segmentos = [];
-  for (const t of d.tracos)
-    for (let i = 1; i < t.pontos.length; i++)
-      segmentos.push({ cor: t.cor, w: t.largura, a: t.pontos[i - 1], b: t.pontos[i] });
+
+    desenho = d;
+
+    canvas.width = d.largura;
+    canvas.height = d.altura;
+
+    document.body.style.background = d.fundo;
+
+    ctx.imageSmoothingEnabled = false;
+
+    ctx.fillStyle = d.fundo;
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
 }
+
+
+// ========================================
+// DESENHAR RETÂNGULO
+// ========================================
+
+function desenharRetangulo(r) {
+
+    ctx.fillStyle = r.cor;
+
+    ctx.fillRect(
+        r.x,
+        r.y,
+        r.w,
+        r.h
+    );
+
+}
+
+
+// ========================================
+// ANIMAÇÃO
+// ========================================
 
 function animar() {
-  cancelAnimationFrame(animacao);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const porQuadro = Math.max(1, Math.ceil(segmentos.length / (DURACAO_SEGUNDOS * 60)));
-  const cx = desenho.largura / 2, cy = desenho.altura / 2;
-  let i = 0;
-  (function passo() {
-    for (let k = 0; k < porQuadro && i < segmentos.length; k++, i++) {
-      const s = segmentos[i];
-      ctx.strokeStyle = s.cor; ctx.lineWidth = s.w; ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(cx + s.a[0], cy - s.a[1]);   // Turtle: y cresce para cima
-      ctx.lineTo(cx + s.b[0], cy - s.b[1]);
-      ctx.stroke();
+
+    if (!desenho) return;
+
+    cancelAnimationFrame(animacao);
+
+    // Limpa a tela
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    ctx.fillStyle = desenho.fundo;
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    let cenaAtual = 0;
+
+    let indiceRetangulo = 0;
+
+    let inicioCena = null;
+
+    let proximaCena = 0;
+
+    const cenas = desenho.cenas;
+
+    const tempoTotal = DURACAO_SEGUNDOS * 1000;
+
+
+    function passo(tempo) {
+
+        // Todas as cenas foram concluídas
+        if (cenaAtual >= cenas.length) {
+
+            status.textContent = "Ritual concluído.";
+
+            animacao = null;
+
+            return;
+        }
+
+
+        // Aguarda a pausa entre as cenas
+        if (tempo < proximaCena) {
+
+            animacao = requestAnimationFrame(passo);
+
+            return;
+        }
+
+
+        const cena = cenas[cenaAtual];
+
+        const retangulos = cena.retangulos;
+
+
+        if (inicioCena === null) {
+
+            inicioCena = tempo;
+
+            status.textContent =
+                cena.nome === "simbolo"
+                    ? "O símbolo está sendo invocado..."
+                    : "Algo está surgindo no centro...";
+
+        }
+
+
+        // Divide o tempo entre as cenas
+        const duracaoCena =
+            tempoTotal * (cenaAtual === 0 ? 0.68 : 0.32);
+
+
+        const progresso = Math.min(
+            (tempo - inicioCena) / duracaoCena,
+            1
+        );
+
+
+        // Quantos retângulos já podem aparecer
+        const quantidade = Math.floor(
+            progresso * retangulos.length
+        );
+
+
+        // Desenha somente os novos retângulos
+        while (indiceRetangulo < quantidade) {
+
+            desenharRetangulo(
+                retangulos[indiceRetangulo]
+            );
+
+            indiceRetangulo++;
+
+        }
+
+
+        // Finaliza a cena
+        if (progresso >= 1) {
+
+            cenaAtual++;
+
+            inicioCena = null;
+
+            indiceRetangulo = 0;
+
+            proximaCena = tempo + PAUSA_CENAS;
+
+        }
+
+
+        animacao = requestAnimationFrame(passo);
+
     }
-    if (i < segmentos.length) animacao = requestAnimationFrame(passo);
-  })();
+
+
+    animacao = requestAnimationFrame(passo);
+
 }
 
-fetch("desenho.json").then(r => r.json()).then(d => { preparar(d); animar(); });
+
+// ========================================
+// CARREGAMENTO DO JSON
+// ========================================
+
+fetch("desenho.json")
+
+    .then(resposta => {
+
+        if (!resposta.ok) {
+
+            throw new Error("Não foi possível carregar desenho.json");
+
+        }
+
+        return resposta.json();
+
+    })
+
+    .then(d => {
+
+        preparar(d);
+
+        status.textContent = "O ritual vai começar...";
+
+        animar();
+
+    })
+
+    .catch(erro => {
+
+        console.error(erro);
+
+        status.textContent =
+            "Erro ao carregar o desenho. Verifique o console.";
+
+    });
+
+
+// ========================================
+// BOTÃO REVER
+// ========================================
+
 document.getElementById("rever").onclick = animar;
+
 </script>
+
 </body>
 </html>

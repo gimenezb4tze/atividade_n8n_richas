@@ -1,52 +1,79 @@
+
+import json
 from pathlib import Path
-import turtle
-from .gravador import Gravador
-from formas import desenhar_imagem
+
+from formas import transformar_em_retangulos
 
 
-SAIDA = Path(__file__).resolve().parent.parent / "docs" / "desenho.json"
+# Raiz do projeto
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Diretórios
+ASSETS_DIR = BASE_DIR / "assets"
+DOCS_DIR = BASE_DIR / "docs"
+
+DOCS_DIR.mkdir(exist_ok=True)
+
+# Configurações
+LARGURA = 900
+ALTURA = 900
+
+FUNDO = "#000000" 
+
+def gerar_desenho():
+
+    print("Preparando o símbolo...")
+
+    simbolo = transformar_em_retangulos(
+        caminho=ASSETS_DIR / "simbolo.png",
+        centro_x=LARGURA / 2,
+        centro_y=ALTURA / 2,
+        largura_maxima=590,
+        altura_maxima=590
+    )
+
+    print("Preparando o personagem...")
+
+    personagem = transformar_em_retangulos(
+        caminho=ASSETS_DIR / "personagem.png",
+        centro_x=LARGURA / 2,
+        centro_y=ALTURA / 2 + 15,
+        largura_maxima=245,
+        altura_maxima=330
+    )
+
+    desenho = {
+        "largura": LARGURA,
+        "altura": ALTURA,
+        "fundo": FUNDO,
+
+        "cenas": [
+            {
+                "nome": "simbolo",
+                "retangulos": simbolo
+            },
+            {
+                "nome": "personagem",
+                "retangulos": personagem
+            }
+        ]
+    }
+
+    destino = DOCS_DIR / "desenho.json"
+
+    with open(destino, "w", encoding="utf-8") as arquivo:
+        json.dump(
+            desenho,
+            arquivo,
+            ensure_ascii=False,
+            indent=2
+        )
+
+    print("\nDesenho gerado com sucesso!")
+    print(f"Símbolo: {len(simbolo)} retângulos")
+    print(f"Personagem: {len(personagem)} retângulos")
+    print(f"Arquivo: {destino}")
 
 
-# Configuração da janela
-tela = turtle.Screen()
-tela.setup(width=900, height=900)
-tela.bgcolor("black")
-tela.title("Meu desenho")
-
-# Desativa atualizações automáticas
-tela.tracer(0)
-
-caneta = turtle.Turtle()
-caneta.speed(0)
-caneta.hideturtle()
-caneta.penup()
-
-# 1. Desenha o símbolo no centro
-largura, altura = desenhar_imagem(
-    caneta,
-    "assets/simbolo.png",
-    -300,
-    300,
-    tamanho_pixel=4,
-    largura_maxima=150,
-    remover_preto=True
-)
-
-tela.update()
-
-# Aguarda antes de revelar o personagem
-turtle.time.sleep(1)
-
-# 2. Desenha o personagem no centro
-largura_personagem, altura_personagem = desenhar_imagem(
-    caneta,
-    "assets/personagem.png",
-    -100,
-    150,
-    tamanho_pixel=4,
-    largura_maxima=50
-)
-
-tela.update()
-
-turtle.done()
+if __name__ == "__main__":
+    gerar_desenho()
