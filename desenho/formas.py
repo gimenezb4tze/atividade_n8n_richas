@@ -3,7 +3,7 @@ from PIL import Image
 from collections import deque
 
 
-def remover_fundo_preto(imagem, tolerancia=55):
+def remover_fundo_preto(imagem, tolerancia=12):
     """
     Remove pixels escuros conectados às bordas.
     Preserva contornos pretos que estejam dentro da imagem.
