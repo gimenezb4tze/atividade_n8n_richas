@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ritual de convite</title>
+<style>
+  body { margin: 0; padding: 16px; background: #14182e; color: #ffd778;
+         font-family: Georgia, serif; text-align: center; }
+  canvas { max-width: 100%; height: auto; }
+  button { background: none; color: inherit; border: 1px solid; padding: 8px 16px;
+           border-radius: 8px; cursor: pointer; font: inherit; }
+</style>
+</head>
+<body>
+  <h1>Sor Richard, você é nosso convidado especial!</h1>
+  <canvas id="c"></canvas>
+  <h2 id="contagem"></h2>
+  <button id="rever">Rever o desenho</button>
+
+<script>
+const DATA_FORMATURA = new Date(2026, 11, 15);  
+// quanto tempo dura a animação
+const DURACAO_SEGUNDOS = 25;                    
+
+const dias = Math.ceil((DATA_FORMATURA - new Date()) / 86400000);
+document.getElementById("contagem").textContent =
+  dias > 0 ? `Faltam ${dias} dias para a minha formatura` : "A formatura chegou!";
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let desenho, segmentos, animacao = 0;
+
+function preparar(d) {
+  desenho = d;
+  canvas.width = d.largura;
+  canvas.height = d.altura;
+  document.body.style.background = d.fundo;
+  segmentos = [];
+  for (const t of d.tracos)
+    for (let i = 1; i < t.pontos.length; i++)
+      segmentos.push({ cor: t.cor, w: t.largura, a: t.pontos[i - 1], b: t.pontos[i] });
+}
+
+function animar() {
+  cancelAnimationFrame(animacao);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const porQuadro = Math.max(1, Math.ceil(segmentos.length / (DURACAO_SEGUNDOS * 60)));
+  const cx = desenho.largura / 2, cy = desenho.altura / 2;
+  let i = 0;
+  (function passo() {
+    for (let k = 0; k < porQuadro && i < segmentos.length; k++, i++) {
+      const s = segmentos[i];
+      ctx.strokeStyle = s.cor; ctx.lineWidth = s.w; ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(cx + s.a[0], cy - s.a[1]);   // Turtle: y cresce para cima
+      ctx.lineTo(cx + s.b[0], cy - s.b[1]);
+      ctx.stroke();
+    }
+    if (i < segmentos.length) animacao = requestAnimationFrame(passo);
+  })();
+}
+
+fetch("desenho.json").then(r => r.json()).then(d => { preparar(d); animar(); });
+document.getElementById("rever").onclick = animar;
+</script>
+</body>
+</html>
