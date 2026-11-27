@@ -57,20 +57,23 @@ def remover_fundo_preto(imagem, tolerancia=12):
     return imagem
 
 
-def carregar_imagem(caminho):
-    """Abre e prepara uma imagem PNG."""
+
+def carregar_imagem(caminho, recortar=True):
+    """Abre e prepara uma imagem."""
 
     imagem = Image.open(caminho).convert("RGBA")
 
     imagem = remover_fundo_preto(imagem)
 
-    # Remove espaços transparentes
-    caixa = imagem.getbbox()
+    # Recorta apenas quando solicitado
+    if recortar:
+        caixa = imagem.getbbox()
 
-    if caixa:
-        imagem = imagem.crop(caixa)
+        if caixa:
+            imagem = imagem.crop(caixa)
 
     return imagem
+
 
 
 def transformar_em_retangulos(
@@ -79,14 +82,15 @@ def transformar_em_retangulos(
     centro_y,
     largura_maxima,
     altura_maxima,
-    max_pixels=180
+    max_pixels=180,
+    recortar=True
 ):
     """
     Converte uma imagem em pequenos retângulos.
     Agrupa pixels consecutivos da mesma cor.
     """
 
-    imagem = carregar_imagem(caminho)
+    imagem = carregar_imagem(caminho, recortar=recortar)
 
     # Reduz a imagem preservando o pixel art
     imagem.thumbnail(

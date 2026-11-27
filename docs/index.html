@@ -73,7 +73,7 @@
 
 <p id="status">Preparando o ritual...</p>
 
-<button id="rever">Rever o desenho</button>
+<button id="reinvocar">Reinvocar</button>
 
 
 <script>
@@ -173,19 +173,15 @@ function desenharRetangulo(r) {
 // ANIMAÇÃO
 // ========================================
 
+
 function animar() {
 
     if (!desenho) return;
 
     cancelAnimationFrame(animacao);
 
-    // Limpa a tela
-    ctx.clearRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
+    // Limpa o desenho anterior
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = desenho.fundo;
 
@@ -197,17 +193,119 @@ function animar() {
     );
 
 
+    // Duração de cada cena
+    const TEMPOS = {
+        simbolo_fundo: 6000,
+        simbolo_centro: 2500,
+        personagem: 5000
+    };
+
+    const PAUSA_CENAS = 500;
+
+    const MENSAGENS = {
+        simbolo_fundo: "O símbolo está sendo invocado...",
+        simbolo_centro: "A energia central está se manifestando...",
+        personagem: "Uma presença está se materializando..."
+    };
+
+
     let cenaAtual = 0;
-
     let indiceRetangulo = 0;
-
     let inicioCena = null;
-
     let proximaCena = 0;
 
     const cenas = desenho.cenas;
 
-    const tempoTotal = DURACAO_SEGUNDOS * 1000;
+
+    function passo(tempo) {
+
+        // Todas as cenas foram concluídas
+        if (cenaAtual >= cenas.length) {
+
+            status.textContent = "Ritual concluído.";
+
+            animacao = null;
+
+            return;
+        }
+
+
+        // Aguarda a pausa entre as cenas
+        if (tempo < proximaCena) {
+
+            animacao = requestAnimationFrame(passo);
+
+            return;
+        }
+
+
+        const cena = cenas[cenaAtual];
+
+        const retangulos = cena.retangulos;
+
+        const duracao = TEMPOS[cena.nome] || 2000;
+
+
+        // Início da cena
+        if (inicioCena === null) {
+
+            inicioCena = tempo;
+
+            indiceRetangulo = 0;
+
+            status.textContent =
+                MENSAGENS[cena.nome] || "O ritual continua...";
+
+        }
+
+
+        // Calcula o progresso
+        const progresso = Math.min(
+            (tempo - inicioCena) / duracao,
+            1
+        );
+
+
+        // Quantidade de retângulos que devem aparecer
+        const quantidade = Math.floor(
+            progresso * retangulos.length
+        );
+
+
+        // Desenha os novos retângulos
+        while (indiceRetangulo < quantidade) {
+
+            desenharRetangulo(
+                retangulos[indiceRetangulo]
+            );
+
+            indiceRetangulo++;
+
+        }
+
+
+        // Finaliza a cena
+        if (progresso >= 1) {
+
+            cenaAtual++;
+
+            inicioCena = null;
+
+            indiceRetangulo = 0;
+
+            proximaCena = tempo + PAUSA_CENAS;
+
+        }
+
+
+        animacao = requestAnimationFrame(passo);
+
+    }
+
+
+    animacao = requestAnimationFrame(passo);
+
+}
 
 
     function passo(tempo) {
@@ -298,8 +396,6 @@ function animar() {
 
 
     animacao = requestAnimationFrame(passo);
-
-}
 
 
 // ========================================
